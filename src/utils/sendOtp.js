@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export const sendOtp = async ({ emailId, otp }) => {
   try {
     // If not in production, log the OTP to the console to save email quota and ease local debugging
@@ -9,23 +11,14 @@ export const sendOtp = async ({ emailId, otp }) => {
       return { message: "OTP logged to console in local mode" };
     }
 
-    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-        "api-key": process.env.BREVO_PASS,
-      },
-      body: JSON.stringify({
+    const response = await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      {
         sender: {
           name: "QuoteShare",
           email: "noreply@quoteshare.work.gd",
         },
-        to: [
-          {
-            email: emailId,
-          },
-        ],
+        to: [{ email: emailId }],
         subject: "Your One-Time Password (OTP) for QuoteShare",
         textContent: `Hello,
 
@@ -45,19 +38,19 @@ Team QuoteShare
 —
 
 QuoteShare is a platform where creativity meets daily inspiration. Thank you for being part of our journey!`,
-      }),
-    });
+      },
+      {
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "api-key": process.env.BREVO_PASSKEY || "",
+        },
+      },
+    );
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.message || "Failed to send email via Brevo API",
-      );
-    }
-
-    const data = await response.json();
-    return data;
+    return response.data;
   } catch (e) {
-    throw new Error(e.message);
+    const errorMessage = e.response?.data?.message || e.message;
+    throw new Error(errorMessage);
   }
 };
