@@ -15,14 +15,14 @@ export const sendOtp = async ({ emailId, otp }) => {
       "https://api.brevo.com/v3/smtp/email",
       {
         sender: {
-          name: "QuoteShare",
-          email: "noreply@quoteshare.work.gd",
+          name: "SINA Quotes",
+          email: "noreply@sina-quotes.work.gd",
         },
         to: [{ email: emailId }],
-        subject: "Your One-Time Password (OTP) for QuoteShare",
+        subject: "Your One-Time Password (OTP) for SINA Quotes",
         textContent: `Hello,
 
-Thank you for using QuoteShare! To verify your email address and continue, please use the One-Time Password (OTP) below:
+Thank you for using SINA Quotes! To verify your email address and continue, please use the One-Time Password (OTP) below:
 
 OTP: ${otp}
 
@@ -33,11 +33,11 @@ If you did not request this OTP, you can safely ignore this message. Your accoun
 Need help or have questions? Reach out to us anytime at balagamsachin337@gmail.com
 
 Best wishes,  
-Team QuoteShare
+Team SINA Quotes
 
 —
 
-QuoteShare is a platform where creativity meets daily inspiration. Thank you for being part of our journey!`,
+SINA Quotes is a platform where creativity meets daily inspiration. Thank you for being part of our journey!`,
       },
       {
         headers: {
