@@ -5,9 +5,39 @@ import { v2 as cloudinary } from "cloudinary";
 
 export const getMyQuotes = async (req, res) => {
   try {
-    const quotes = await Quote.find({ createdBy: req.user }).sort({
-      createdAt: -1,
-    });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const { status, search, sortBy = "createdAt", sortOrder = "desc" } = req.query;
+
+    const filter = { createdBy: req.user };
+    
+    // Status filter
+    if (status && ["pending", "approved", "rejected"].includes(status)) {
+      filter.status = status;
+    }
+
+    // Search filter
+    if (search && search.trim() !== "") {
+      filter.$or = [
+        { author: { $regex: search, $options: "i" } },
+        { quote: { $regex: search, $options: "i" } },
+        { caption: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
+
+    // Fetch quotes with pagination
+    const quotes = await Quote.find(filter)
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limit);
+
+    // Get total count
+    const total = await Quote.countDocuments(filter);
+
     res.status(200).json({
       message: "Quotes fetched successfully",
       data: quotes.map((quote) => ({
@@ -17,13 +47,20 @@ export const getMyQuotes = async (req, res) => {
         caption: quote.caption,
         imageUrl: quote.imageUrl,
         status: quote.status,
-        adminComment:quote.adminComment,
+        socialLinks: quote.socialLinks,
+        adminComment: quote.adminComment,
         createdAt: quote.createdAt,
         createdBy: req.user.emailId,
       })),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      }
     });
   } catch (err) {
-    console.error(err);
+    console.error("Fetch my quotes error:", err);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -257,21 +294,52 @@ export const rejectQuote = async (req, res) => {
 
 export const getAllQuotes = async (req, res) => {
   try {
-    const { status } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const { status, search, sortBy = "createdAt", sortOrder = "desc" } = req.query;
 
     const filter = {};
+    
+    // Status filter
     if (status && ["pending", "approved", "rejected"].includes(status)) {
       filter.status = status;
     }
 
-    const quotes = await Quote.find(filter).sort({ createdAt: -1 });
+    // Search filter (author or quote content or caption)
+    if (search && search.trim() !== "") {
+      filter.$or = [
+        { author: { $regex: search, $options: "i" } },
+        { quote: { $regex: search, $options: "i" } },
+        { caption: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
+
+    // Fetch quotes with pagination & population
+    const quotes = await Quote.find(filter)
+      .populate("createdBy", "name emailId") // Populate creator user info
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limit);
+
+    // Get total count for pagination metadata
+    const total = await Quote.countDocuments(filter);
 
     res.status(200).json({
       message: "Quotes fetched successfully",
       data: quotes,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      }
     });
   } catch (err) {
-    console.error(err);
+    console.error("Fetch quotes admin error:", err);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -280,8 +348,8 @@ export const getQuoteStats = async (req, res) => {
   try {
     let matchCondition = {};
 
-    // If user is not admin, filter by their email
-    if (req.user.role !== "admin") {
+    // If user is not admin, or if request asks for personal scope, filter by user id
+    if (req.user.role !== "admin" || req.query.personal === "true") {
       matchCondition.createdBy = req.user._id;
     }
 

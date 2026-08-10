@@ -1,5 +1,5 @@
 {
-  "name": "tabs",
+  "name": "sina-quotes-server",
   "version": "1.0.0",
   "description": "Quotes on each new chrome tab",
   "main": "index.js",
